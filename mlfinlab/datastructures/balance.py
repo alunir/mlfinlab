@@ -32,10 +32,10 @@ def _update_counters(cache, flag):
     if flag and cache:
         # Update variables based on cache
         cum_ticks = int(cache[-1].cum_ticks)
-        cum_dollar_value = np.float(cache[-1].cum_dollar_value)
+        cum_dollar_value = np.float64(cache[-1].cum_dollar_value)
         cum_volume = cache[-1].cum_volume
-        low_price = np.float(cache[-1].low)
-        high_price = np.float(cache[-1].high)
+        low_price = np.float64(cache[-1].low)
+        high_price = np.float64(cache[-1].high)
     else:
         # Reset counters
         cum_ticks, cum_dollar_value, cum_volume, high_price, low_price = (
@@ -87,7 +87,7 @@ def _extract_bars(data, metric, threshold=50000, cache=None, flag=False):
     for row in data.values:
         # Set variables
         date_time = row[0]
-        price = np.float(row[1])
+        price = np.float64(row[1])
         volume = row[2]
 
         # Calculations
@@ -168,7 +168,7 @@ def _assert_dataframe(test_batch):
         test_batch.shape[1] == 3
     ), "Must have only 3 columns in csv: date_time, price, & volume."
     assert isinstance(test_batch.iloc[0, 1], float), "price column in csv not float."
-    assert isinstance(test_batch.iloc[0, 2], np.int64), "volume column in csv not int."
+    assert isinstance(test_batch.iloc[0, 2], float), "volume column in csv not float."
 
     try:
         pd.to_datetime(test_batch.iloc[0, 0])
@@ -176,13 +176,13 @@ def _assert_dataframe(test_batch):
         print("csv file, column 0, not a date time format:", test_batch.iloc[0, 0])
 
 
-def _batch_run(file_path, metric, threshold=50000, batch_size=20000000):
+def _batch_run(df, metric, threshold=50000, batch_size=20000000):
     """
     Reads a csv file in batches and then constructs the financial data structure in the form of a DataFrame.
 
     The csv file must have only 3 columns: date_time, price, & volume.
 
-    :param file_path: File path pointing to csv data.
+    :param df: DataFrame to read
     :param metric: cum_ticks, cum_dollar_value, cum_volume
     :param threshold: A cumulative value above this threshold triggers a sample to be taken.
     :param batch_size: The number of rows per batch. Less RAM = smaller batch size.
@@ -197,10 +197,10 @@ def _batch_run(file_path, metric, threshold=50000, batch_size=20000000):
     final_bars = []
 
     # Read in the first row & assert format
-    _assert_dataframe(pd.read_csv(file_path, nrows=1))
+    _assert_dataframe(df.iloc[0:1])
 
     # Read csv in batches
-    for batch in pd.read_csv(file_path, chunksize=batch_size):
+    for _, batch in df.groupby(np.arange(len(df)) // batch_size):
 
         print("Batch number:", count)
         list_bars, cache = _extract_bars(
@@ -230,7 +230,7 @@ def _batch_run(file_path, metric, threshold=50000, batch_size=20000000):
     return bars_df
 
 
-def get_dollar_bars(file_path, threshold=70000000, batch_size=20000000):
+def get_dollar_bars(df, threshold=70000000, batch_size=20000000):
     """
     Creates the dollar bars: date_time, open, high, low, close, cum_vol, cum_dollar, and cum_ticks.
 
@@ -238,50 +238,50 @@ def get_dollar_bars(file_path, threshold=70000000, batch_size=20000000):
     it is suggested that using 1/50 of the average daily dollar value, would result in more desirable statistical
     properties.
 
-    :param file_path: File path pointing to csv data.
+    :param df: a pandas.DataFrame containing the price and volume data.
     :param threshold: A cumulative value above this threshold triggers a sample to be taken.
     :param batch_size: The number of rows per batch. Less RAM = smaller batch size.
     :return: Dataframe of dollar bars
     """
     return _batch_run(
-        file_path=file_path,
+        df=df,
         metric="cum_dollar_value",
         threshold=threshold,
         batch_size=batch_size,
     )
 
 
-def get_volume_bars(file_path, threshold=28224, batch_size=20000000):
+def get_volume_bars(df, threshold=28224, batch_size=20000000):
     """
     Creates the volume bars: date_time, open, high, low, close, cum_vol, cum_dollar, and cum_ticks.
 
     Following the paper "The Volume Clock: Insights into the high frequency paradigm" by Lopez de Prado, et al,
     it is suggested that using 1/50 of the average daily volume, would result in more desirable statistical properties.
 
-    :param file_path: File path pointing to csv data.
+    :param df: a pandas.DataFrame containing the price and volume data.
     :param threshold: A cumulative value above this threshold triggers a sample to be taken.
     :param batch_size: The number of rows per batch. Less RAM = smaller batch size.
     :return: Dataframe of volume bars
     """
     return _batch_run(
-        file_path=file_path,
+        df=df,
         metric="cum_volume",
         threshold=threshold,
         batch_size=batch_size,
     )
 
 
-def get_tick_bars(file_path, threshold=2800, batch_size=20000000):
+def get_tick_bars(df, threshold=2800, batch_size=20000000):
     """
     Creates the tick bars: date_time, open, high, low, close, cum_vol, cum_dollar, and cum_ticks.
 
-    :param file_path: File path pointing to csv data.
+    :param df: a pandas.DataFrame containing the price and volume data.
     :param threshold: A cumulative value above this threshold triggers a sample to be taken.
     :param batch_size: The number of rows per batch. Less RAM = smaller batch size.
     :return: Dataframe of tick bars
     """
     return _batch_run(
-        file_path=file_path,
+        df=df,
         metric="cum_ticks",
         threshold=threshold,
         batch_size=batch_size,

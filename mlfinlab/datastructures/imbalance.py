@@ -32,14 +32,14 @@ def _get_updated_counters(cache, flag, exp_num_ticks_init):
     if flag and cache:
         # Update variables based on cache
         cum_ticks = int(cache[-1].cum_ticks)
-        cum_dollar_value = np.float(cache[-1].cum_dollar_value)
+        cum_dollar_value = np.float64(cache[-1].cum_dollar_value)
         cum_volume = cache[-1].cum_volume
-        low_price = np.float(cache[-1].low)
-        high_price = np.float(cache[-1].high)
+        low_price = np.float64(cache[-1].low)
+        high_price = np.float64(cache[-1].high)
         # cumulative imbalance for a particular imbalance calculation (theta_t in Prado book)
-        cum_theta = np.float(cache[-1].cum_theta)
+        cum_theta = np.float64(cache[-1].cum_theta)
         # expected number of ticks extracted from prev bars
-        exp_num_ticks = np.float(cache[-1].exp_num_ticks)
+        exp_num_ticks = np.float64(cache[-1].exp_num_ticks)
         # array of latest imbalances
         imbalance_array = cache[-1].imbalance_array
     else:
@@ -121,7 +121,7 @@ def _extract_bars(
     for row in data.values:
         # Set variables
         date_time = row[0]
-        price = np.float(row[1])
+        price = np.float64(row[1])
         volume = row[2]
 
         # Calculations
@@ -243,7 +243,7 @@ def _assert_dataframe(test_batch):
         test_batch.shape[1] == 3
     ), "Must have only 3 columns in csv: date_time, price, & volume."
     assert isinstance(test_batch.iloc[0, 1], float), "price column in csv not float."
-    assert isinstance(test_batch.iloc[0, 2], np.int64), "volume column in csv not int."
+    assert isinstance(test_batch.iloc[0, 2], float), "volume column in csv not float."
 
     try:
         pd.to_datetime(test_batch.iloc[0, 0])
@@ -252,7 +252,7 @@ def _assert_dataframe(test_batch):
 
 
 def _batch_run(
-    file_path,
+    df,
     metric,
     exp_num_ticks_init,
     num_prev_bars,
@@ -264,7 +264,7 @@ def _batch_run(
 
     The csv file must have only 3 columns: date_time, price, & volume.
 
-    :param file_path: File path pointing to csv data.
+    :param df: a pandas.DataFrame containing the price and volume data.
     :param metric: tick_imbalance, dollar_imbalance or volume_imbalance
     :param exp_num_ticks_init: initial expetected number of ticks per bar
     :param num_prev_bars: Number of previous bars used for EWMA window (window=num_prev_bars * bar length)
@@ -283,10 +283,10 @@ def _batch_run(
     final_bars = []
 
     # Read in the first row & assert format
-    _assert_dataframe(pd.read_csv(file_path, nrows=1))
+    _assert_dataframe(df.iloc[0:1])
 
     # Read csv in batches
-    for batch in pd.read_csv(file_path, chunksize=batch_size):
+    for _, batch in df.groupby(np.arange(len(df)) // batch_size):
 
         print("Batch number:", count)
         list_bars, cache, num_ticks_bar = _extract_bars(
@@ -324,11 +324,11 @@ def _batch_run(
 
 
 def get_dollar_imbalance_bars(
-    file_path, exp_num_ticks_init, num_prev_bars, num_ticks_ewma_window, batch_size=2e7
+    df, exp_num_ticks_init, num_prev_bars, num_ticks_ewma_window, batch_size=2e7
 ):
     """
     Creates the dollar imbalace bars: date_time, open, high, low, close, cum_vol, cum_dollar, and cum_ticks.
-    :param file_path: File path pointing to csv data.
+    :param df: a pandas.DataFrame containing the price and volume data.
     :param exp_num_ticks_init: initial expetected number of ticks per bar
     :param num_prev_bars: Number of previous bars used for EWMA window (window=num_prev_bars * bar length)
                           for estimating expected imbalance (tick, volume or dollar)
@@ -337,7 +337,7 @@ def get_dollar_imbalance_bars(
     :return: Dataframe of dollar bars
     """
     return _batch_run(
-        file_path=file_path,
+        df=df,
         metric="dollar_imbalance",
         exp_num_ticks_init=exp_num_ticks_init,
         num_prev_bars=num_prev_bars,
@@ -347,11 +347,11 @@ def get_dollar_imbalance_bars(
 
 
 def get_volume_imbalance_bars(
-    file_path, exp_num_ticks_init, num_prev_bars, num_ticks_ewma_window, batch_size=2e7
+    df, exp_num_ticks_init, num_prev_bars, num_ticks_ewma_window, batch_size=2e7
 ):
     """
     Creates the volume imbalace bars: date_time, open, high, low, close, cum_vol, cum_dollar, and cum_ticks.
-    :param file_path: File path pointing to csv data.
+    :param df: a pandas.DataFrame containing the price and volume data.
     :param exp_num_ticks_init: initial expetected number of ticks per bar
     :param num_prev_bars: Number of previous bars used for EWMA window (window=num_prev_bars * bar length)
                           for estimating expected imbalance (tick, volume or dollar)
@@ -360,7 +360,7 @@ def get_volume_imbalance_bars(
     :return: Dataframe of dollar bars
     """
     return _batch_run(
-        file_path=file_path,
+        df=df,
         metric="volume_imbalance",
         exp_num_ticks_init=exp_num_ticks_init,
         num_prev_bars=num_prev_bars,
@@ -370,11 +370,11 @@ def get_volume_imbalance_bars(
 
 
 def get_tick_imbalance_bars(
-    file_path, exp_num_ticks_init, num_prev_bars, num_ticks_ewma_window, batch_size=2e7
+    df, exp_num_ticks_init, num_prev_bars, num_ticks_ewma_window, batch_size=2e7
 ):
     """
     Creates the tick imbalace bars: date_time, open, high, low, close, cum_vol, cum_dollar, and cum_ticks.
-    :param file_path: File path pointing to csv data.
+    :param df: a pandas.DataFrame containing the price and volume data.
     :param exp_num_ticks_init: initial expetected number of ticks per bar
     :param num_prev_bars: Number of previous bars used for EWMA window (window=num_prev_bars * bar length)
                           for estimating expected imbalance (tick, volume or dollar)
@@ -383,7 +383,7 @@ def get_tick_imbalance_bars(
     :return: Dataframe of dollar bars
     """
     return _batch_run(
-        file_path=file_path,
+        df=df,
         metric="tick_imbalance",
         exp_num_ticks_init=exp_num_ticks_init,
         num_prev_bars=num_prev_bars,
