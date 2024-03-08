@@ -98,17 +98,23 @@ class LocalLinearTrendResult:
 
 
 def llt_transform(
-    s: pd.Series, scaler=StandardScaler, forecast=100, alpha=0.05
+    s: pd.Series, scaler=None, forecast=100, alpha=0.05
 ) -> LocalLinearTrendResult:
     _s = s.reset_index(drop=True)
 
-    _scaler = scaler()
-    y = pd.Series(
-        _scaler.fit_transform(_s.values.reshape(-1, 1)).reshape(
-            -1,
-        ),
-        index=_s.index,
-    )
+    if scaler:
+        _scaler = scaler()
+        y = pd.Series(
+            _scaler.fit_transform(_s.values.reshape(-1, 1)).reshape(
+                -1,
+            ),
+            index=_s.index,
+        )
+    else:
+        y = pd.Series(
+            _s.values,
+            index=_s.index,
+        )
 
     # Setup the model
     mod = LocalLinearTrend(y)
@@ -122,7 +128,7 @@ def llt_transform(
     forecast = res.get_forecast(forecast)
 
     return LocalLinearTrendResult(
-        inverse_transform=_scaler.inverse_transform,
+        inverse_transform=_scaler.inverse_transform if scaler else None,
         y=y,
         predicted_mean=predict.predicted_mean,
         predicted_conf=predict.conf_int(alpha=alpha),
