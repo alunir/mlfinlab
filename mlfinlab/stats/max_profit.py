@@ -30,7 +30,7 @@ def consolidate_sequence(seq):
 
 
 def calculate_max_profit(
-    asks: list[int], bids: list[int], fee_ratio: float
+    asks: list[int], bids: list[int], fee_ratio: float, verbose: bool = False
 ) -> MaxProfit:
     n = len(asks)
     sell_max_sell, sell_max_buy = float("-inf"), 0
@@ -40,18 +40,22 @@ def calculate_max_profit(
     buy_trades = []
     for i in range(n):
         if sell_max_sell < sell_max_buy + bids[i] * (1.0 - 2 * fee_ratio):
-            # print(f"sell sell? {i}")
+            if verbose:
+                print(f"sell sell? {i}")
             sell_max_sell = sell_max_buy + bids[i] * (1.0 - 2 * fee_ratio)
             sell_trades += [i] if i > 0 else [0]
         if sell_max_buy < sell_max_sell - asks[i]:
-            # print(f"sell buy? {i}")
+            if verbose:
+                print(f"sell buy? {i}")
             sell_max_buy = sell_max_sell - asks[i]
 
         if buy_max_sell < buy_max_buy + bids[i] * (1.0 - 2 * fee_ratio):
-            # print(f"buy sell? {i}")
+            if verbose:
+                print(f"buy sell? {i}")
             buy_max_sell = buy_max_buy + bids[i] * (1.0 - 2 * fee_ratio)
         if buy_max_buy < buy_max_sell - asks[i]:
-            # print(f"buy buy? {i}")
+            if verbose:
+                print(f"buy buy? {i}")
             buy_max_buy = buy_max_sell - asks[i]
             buy_trades += [i] if i > 0 else [0]
 
